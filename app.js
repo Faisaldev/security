@@ -2,9 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-//const encrypt = require('mongoose-encryption');
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
 const _ = require('lodash');
+
+//Salt rounds
+const saltRounds = 10;
 
 //init express
 const app = express();
@@ -30,12 +32,6 @@ const userSchema = new mongoose.Schema({
   password: String,
 });
 
-// adding encryption plugin for passwords
-// userSchema.plugin(encrypt, {
-//   secret: process.env.SECRET,
-//   encryptedFields: ['password'],
-// });
-
 //creating user model
 const User = mongoose.model('User', userSchema);
 
@@ -53,31 +49,35 @@ app.get('/register', (req, res) => {
 });
 
 app.post('/register', (req, res) => {
-  const newUser = new User({
-    email: _.toLower(req.body.username),
-    password: md5(req.body.password),
-  });
+  bcrypt.hash(req.body.password, saltRounds, (err, hashedPassword) => {
+    const newUser = new User({
+      email: _.toLower(req.body.username),
+      password: hashedPassword,
+    });
 
-  newUser.save((err) => {
-    if (!err) {
-      res.render('secrets');
-    } else {
-      res.send(err);
-    }
+    newUser.save((err) => {
+      if (!err) {
+        res.render('secrets');
+      } else {
+        res.send(err);
+      }
+    });
   });
 });
 
 app.post('/login', (req, res) => {
   const email = _.toLower(req.body.username);
-  const password = md5(req.body.password);
+  const password = req.body.password;
 
   User.findOne({ email: email }, (err, foundUser) => {
     if (!err && foundUser) {
-      if (foundUser.password === password) {
-        res.render('secrets');
-      } else {
-        res.send('Incorrect password');
-      }
+      bcrypt.compare(password, foundUser.password, (err, result) => {
+        if (result) {
+          res.render('secrets');
+        } else {
+          res.send('Incorrect password');
+        }
+      });
     } else {
       res.send('User not found' + err);
     }
