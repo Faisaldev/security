@@ -46,6 +46,7 @@ const userSchema = new mongoose.Schema({
   username: String,
   password: String,
   googleId: String,
+  secret: String,
 });
 
 //Passport local mongoose plugin for hashing and salting
@@ -120,6 +121,29 @@ app.get('/secrets', (req, res) => {
   } else {
     res.redirect('/login');
   }
+});
+
+app.get('/submit', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.render('submit');
+  } else {
+    res.redirect('/login');
+  }
+});
+
+app.post('/submit', (req, res) => {
+  const secret = req.body.secret;
+  User.findById(req.user.id, (err, foundUser) => {
+    if (!err) {
+      if (foundUser) {
+        foundUser.secret = secret;
+        foundUser.save();
+      }
+      res.redirect('/secrets');
+    } else {
+      res.send(err);
+    }
+  });
 });
 
 app.get('/logout', (req, res) => {
